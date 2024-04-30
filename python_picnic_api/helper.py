@@ -1,3 +1,4 @@
+import json
 import re
 
 # prefix components:
@@ -45,8 +46,8 @@ def _get_category_id_from_link(category_link: str) -> str:
         return result
     else:
         return None
-    
-    
+
+
 def _get_category_name(category_link: str, categories: list) -> str:
     category_id = _get_category_id_from_link(category_link)
     if category_id:
@@ -76,3 +77,26 @@ def get_image(id: str, size="regular", suffix="webp"):
     )
     return f"{IMAGE_BASE_URL}/{id}/{size}.{suffix}"
 
+
+def _extract_search_results(raw_results: dict) -> list:
+    search_results = []
+    sole_article_id_pattern = re.compile(r"sole_article_id=([0-9]+)")
+
+    # Iterate over the nested structure of raw_results
+    for child1 in raw_results.get("body", {}).get("children", []):
+        for child2 in child1.get("children", []):
+            content = child2.get("content")
+            if content and "selling_unit" in content:
+                # Extracting the sole_article_id from the serialized JSON of pml
+                sole_article_ids = sole_article_id_pattern.findall(
+                    json.dumps(child2.get("pml", {}))
+                )
+                if sole_article_ids:
+                    sole_article_id = sole_article_ids[0]
+                    # Create and append the result entry
+                    result_entry = {
+                        **content["selling_unit"],
+                        "sole_article_id": sole_article_id,
+                    }
+                    search_results.append(result_entry)
+    return search_results
