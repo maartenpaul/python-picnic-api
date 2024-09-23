@@ -82,29 +82,6 @@ def get_image(id: str, size="regular", suffix="webp"):
     assert size in sizes, "size must be one of: " + ", ".join(sizes)
     return f"{IMAGE_BASE_URL}/{id}/{size}.{suffix}"
 
-
-def _extract_search_results(raw_results: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Extract search results from a nested dictionary structure returned by Picnic search."""
-    search_results = []
-
-    for section in raw_results.get("body", {}).get("children", []):
-        for item in section.get("children", []):
-            content = item.get("content", {})
-            if "selling_unit" in content:
-                sole_article_ids = SOLE_ARTICLE_ID_PATTERN.findall(
-                    json.dumps(item.get("pml", {}))
-                )
-                sole_article_id = sole_article_ids[0] if sole_article_ids else None
-
-                result_entry = {
-                    **content["selling_unit"],
-                    "sole_article_id": sole_article_id,
-                }
-                search_results.append(result_entry)
-
-    return search_results
-
-
 def _extract_search_results(raw_results, max_items: int = 10):
     """Extract search results from the nested dictionary structure returned by Picnic search.
     Number of max items can be defined to reduce excessive nested search"""
