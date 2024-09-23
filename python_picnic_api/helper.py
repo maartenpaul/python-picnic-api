@@ -12,7 +12,7 @@ last = "└── "
 IMAGE_SIZES = ["small", "medium", "regular", "large", "extra-large"]
 IMAGE_BASE_URL = "https://storefront-prod.nl.picnicinternational.com/static/images"
 
-SOLE_ARTICLE_ID_PATTERN = re.compile(r"sole_article_id=([0-9]+)")
+SOLE_ARTICLE_ID_PATTERN = re.compile(r'"sole_article_id":"(\w+)"')
 
 
 def _tree_generator(response: list, prefix: str = ""):
@@ -103,3 +103,32 @@ def _extract_search_results(raw_results: Dict[str, Any]) -> List[Dict[str, Any]]
                 search_results.append(result_entry)
 
     return search_results
+
+
+def _extract_search_results(raw_results, max_items: int = 10):
+    """Extract search results from the nested dictionary structure returned by Picnic search.
+    Number of max items can be defined to reduce excessive nested search"""
+    search_results = []
+    
+    def find_articles(node):
+        if len(search_results) >= max_items:
+            return
+        
+        content = node.get("content", {})
+        if content.get("type") == "SELLING_UNIT_TILE" and "sellingUnit" in content:
+            selling_unit = content["sellingUnit"]
+            sole_article_ids = SOLE_ARTICLE_ID_PATTERN.findall(json.dumps(node))
+            sole_article_id = sole_article_ids[0] if sole_article_ids else None
+            result_entry = {
+                **selling_unit,
+                "sole_article_id": sole_article_id,
+            }
+            search_results.append(result_entry)
+        
+        for child in node.get("children", []):
+            find_articles(child)
+
+    body = raw_results.get("body", {})
+    find_articles(body.get("child", {}))
+    
+    return [{"items": search_results}]
